@@ -75,9 +75,10 @@ class Found_injections:
         else: 
             self.path = f'alpha_vary/{self.dmid_fun}' if self.emax_fun is None else f'alpha_vary/{self.dmid_fun}/{self.emax_fun}'
         
-        self.runs = ['o1', 'o2', 'o3']
+        self.runs = ['o1', 'o2', 'o3', 'o4']  # 'o4' to be used for o4 sensitivity over o4a + o4b
         
-        self.obs_time = {'o1' : 0.1331507, 'o2' : 0.323288, 'o3' : 0.75435365296528} #years
+        # Placeholder obs time for o4a/b
+        self.obs_time = {'o1' : 0.1331507, 'o2' : 0.323288, 'o3' : 0.75435365296528, 'o4' : 1.5} #years
         self.total_obs_time = np.sum(list(self.obs_time.values()))
         self.prop_obs_time = np.array([self.obs_time[i]/self.total_obs_time for i in self.runs])
         
@@ -151,7 +152,7 @@ class Found_injections:
             file = h5py.File(f'{os.path.dirname(__file__)}/{run_dataset}-bbh-IMRPhenomXPHMpseudoFourPN.hdf5', 'r')
         except:
             raise RuntimeError('File with the injection set not found. Please add it to your installation \
-                                of cbc_pdet, in the folder where o123_class_found_inj_general.py is. \
+                                of cbc_pdet, in the folder where gwtc_found_inj.py is. \
                                 It can be downloaded from https://dcc.ligo.org/LIGO-T2100280 (currently LVK access)')
         atr = dict(file.attrs.items())
         
@@ -200,7 +201,7 @@ class Found_injections:
             file = h5py.File(f'{os.path.dirname(__file__)}/endo3_bbhpop-LIGO-T2100113-v12.hdf5', 'r')
         except:
             raise RuntimeError('File with the injection set not found. Please add it to your installation \
-                                of cbc_pdet, in the folder where o123_class_found_inj_general.py is. \
+                                of cbc_pdet, in the folder where gwtc_found_inj.py is. \
                                 It can be downloaded from https://zenodo.org/records/7890437')
         
         # Total number of generated injections
@@ -318,14 +319,14 @@ class Found_injections:
 
         Parameters
         ----------
-        run_fit : str. Observing run from which we want to use the fit. Must be 'o1', 'o2' or 'o3'.
+        run_fit : str. Observing run from which we want to use the fit.
 
         Returns
         -------
         None
         '''
-        assert run_fit =='o1' or run_fit == 'o2' or run_fit == 'o3',\
-        "Argument (run_fit) must be 'o1' or 'o2' or 'o3'. "
+        assert run_fit in ['o1', 'o2', 'o3', 'o4'], \
+            "Argument (run_fit) must be 'o1', 'o2', 'o3', or 'o4'."
         
         if not rescale_o3: # get separate independent fit files
              run_fit_touse = run_fit
@@ -1229,7 +1230,7 @@ class Found_injections:
         Parameters
         ----------
         run_fit : str. Observing run that we want to use its fit to rescale the others
-        run_dataset : str. Injection set. Must be 'o1' , 'o2' or 'o3'. The default is 'o3'.
+        run_dataset : str. Injection set. Must be 'o1', 'o2' or 'o3'. The default is 'o3'.
 
         Returns
         -------
@@ -1273,8 +1274,8 @@ class Found_injections:
         frac1 = o1_inj / o3_inj
         frac2 = o2_inj / o3_inj
         
-        pred_rates = { 'o1' : frac1 * self.det_rates['o3'], 'o2' : frac2 * self.det_rates['o3'] }
-        pred_nev = { 'o1' : pred_rates['o1'] * self.obs_time['o1'], 'o2' : pred_rates['o2'] * self.obs_time['o2'] }
+        pred_rates = {'o1' : frac1 * self.det_rates['o3'], 'o2': frac2 * self.det_rates['o3'] }
+        pred_nev = {'o1' : pred_rates['o1'] * self.obs_time['o1'], 'o2': pred_rates['o2'] * self.obs_time['o2'] }
         
         return pred_nev
     
@@ -1287,8 +1288,8 @@ class Found_injections:
         dL : float. luminosity distance [Mpc]
         m1_det : float. Mass 1 in the detector's frame masses
         m2_det : float. Mass 2 in the detector's frame masses
-        run : str. observing run from which we want the fit. Must be 'o1', 'o2' or 'o3'
-        rescale_o3 : True or False, optional. The default is True. If True, we iuse the rescaled fit for o1 and o2. If False, the direct fit.
+        run : str. observing run from which we want the fit.
+        rescale_o3 : True or False, optional. The default is True. If True, we use the rescaled fit for o1 and o2. If False, the direct fit.
 
         Returns
         -------
@@ -1312,7 +1313,7 @@ class Found_injections:
         else:
             emax = np.copy(emax_params)
             
-        pdet_i = self.sigmoid(dL, dmid_values, emax , gamma , delta , alpha)
+        pdet_i = self.sigmoid(dL, dmid_values, emax, gamma, delta, alpha)
         
         return pdet_i
     
