@@ -1081,7 +1081,7 @@ class Found_injections:
             np.savetxt(name_mid, mid_values, header = '0, 1, 2, 3, 4', fmt='%s')
         return
     
-    def sensitive_volume(self, run_fit, m1, m2, chieff=0., rescale_o3=True):
+    def sensitive_volume(self, run_fit, m1, m2, chieff=0., zmax=1.9, rescale_o3=True):
         '''
         Sensitive volume for a merger with given masses (m1 and m2), computed from the fit to whichever observed run we want.
         Integrated within the total range of redshift available in the injection's dataset.
@@ -1104,12 +1104,12 @@ class Found_injections:
         
         self.get_opt_params(run_fit, rescale_o3)
         
-        #we compute some values of dl for some z to make later an interpolator
+        #we compute some values of dl for some z to make an interpolator
         if self.zinterp_VT is None:
             fun_A = lambda t : np.sqrt(self.cosmo.Om0 * (1 + t)**3 + 1 - self.cosmo.Om0)
             quad_fun_A = lambda t: 1/fun_A(t)
             
-            z = np.linspace(0.002, 1.9, 100)
+            z = np.linspace(0.002, zmax, 100)
             z0 = np.insert(z, 0, 0, axis=0)
             dL = np.array([(const.c.value*1e-3 / self.cosmo.H0.value) * (1 + i) * integrate.quad(quad_fun_A, 0, i)[0] for i in z0])
             
