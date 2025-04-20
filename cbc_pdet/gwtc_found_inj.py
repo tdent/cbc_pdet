@@ -336,8 +336,10 @@ class Found_injections:
 
         try:
             path = f'{os.path.dirname(__file__)}/{run_fit_touse}/' + self.path
-            self.dmid_params = np.loadtxt( path + '/joint_fit_dmid.dat')[-1, :-1]
-            self.shape_params = np.loadtxt( path + '/joint_fit_shape.dat')[-1, :-1]
+            # Take last entry in file (expected to be the final iteration) and
+            # all values except the last one which is the likelihood
+            self.dmid_params = np.loadtxt(path + '/joint_fit_dmid.dat')[-1, :-1]
+            self.shape_params = np.loadtxt(path + '/joint_fit_shape.dat')[-1, :-1]
         except:
             raise RuntimeError('ERROR in self.get_opt_params: There are not such files because there is not a fit yet with these options.')
     

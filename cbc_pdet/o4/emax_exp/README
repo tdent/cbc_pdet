@@ -1,0 +1,3 @@
+As of April 2025 these fit parameters are copied from O3 but with the constant distance scale (first entry in dmid params) a factor of 2^(1/3) larger.
+
+This is a temporary approximation intended to reflect a detection rate about a factor 2 higher than O3.
