@@ -63,6 +63,7 @@ class Found_injections:
         cosmology_class = getattr(astropy.cosmology, cosmo_parameters.pop('name'))
         self.cosmo = cosmology_class(**cosmo_parameters)
 
+        self.dLmax = None
         self.Vtot = None  # Slot for total comoving volume up to max z
         self.zinterp_VT = None # Slot for interpolator of z given dL for comoving volume
         
@@ -84,7 +85,7 @@ class Found_injections:
         
         self.obs_nevents = {'o1': 3, 'o2': 7, 'o3': 59}
         
-        self.det_rates = {i : self.obs_nevents[i] / self.obs_time[i] for i in self.runs}
+        self.det_rates = {i : self.obs_nevents[i] / self.obs_time[i] for i in self.obs_nevents}
         
         self.dmid_params_names = {'Dmid_mchirp': 'cte',
                                   'Dmid_mchirp_expansion': ['cte', 'a20', 'a01', 'a21', 'a30', 'a10'],
@@ -146,7 +147,7 @@ class Found_injections:
         return
         
     def read_o1o2_set(self, run_dataset):
-        assert run_dataset =='o1' or run_dataset == 'o2', "Argument (run_dataset) must be 'o1' or 'o2'."
+        assert run_dataset == 'o1' or run_dataset == 'o2', "Argument (run_dataset) must be 'o1' or 'o2'."
         
         try:
             file = h5py.File(f'{os.path.dirname(__file__)}/{run_dataset}-bbh-IMRPhenomXPHMpseudoFourPN.hdf5', 'r')
@@ -313,7 +314,7 @@ class Found_injections:
         
         return
     
-    def get_opt_params(self, run_fit, rescale_o3 = True):
+    def get_opt_params(self, run_fit, rescale_o3=True):
         '''
         Sets self.dmid_params and self.shape_params as a class attribute (optimal values from some previous fit).
 
@@ -329,9 +330,8 @@ class Found_injections:
             "Argument (run_fit) must be 'o1', 'o2', 'o3', or 'o4'."
         
         if not rescale_o3: # get separate independent fit files
-             run_fit_touse = run_fit
-            
-        else: #rescale o1 and o2
+            run_fit_touse = run_fit
+        else: # rescale o1 and o2
             run_fit_touse = 'o3'
 
         try:
@@ -342,11 +342,11 @@ class Found_injections:
             self.shape_params = np.loadtxt(path + '/joint_fit_shape.dat')[-1, :-1]
         except:
             raise RuntimeError('ERROR in self.get_opt_params: There are not such files because there is not a fit yet with these options.')
-    
-        if rescale_o3 and run_fit != 'o3':
+
+        if rescale_o3 and run_fit in ['o1', 'o2']:
             d0 = self.find_dmid_cte_found_inj(run_fit, 'o3')
             self.dmid_params[0] = d0
-            
+
         return
     
     def get_ini_values(self):
@@ -398,18 +398,18 @@ class Found_injections:
         
         return
     
-    def sigmoid(self, dL, dLmid, emax , gamma , delta , alpha = 2.05):
+    def sigmoid(self, dL, dLmid, emax, gamma, delta, alpha = 2.05):
         """
         Sigmoid function used to estimate the probability of detection of CBC events
 
         Parameters
         ----------
         dL : 1D array of the luminosity distance.
-        dLmid : parameter or function standing for the dL at which Pdet = 0.5
-        gamma : parameter controling the shape of the curve.
-        delta : parameter controling the shape of the curve.
-        alpha : parameter controling the shape of the curve. The default is 2.05
-        emax : parameter or function controling the maximun search sensitivity
+        dLmid : float or 1D array of dL at which Pdet = 0.5
+        gamma : parameter controlling the shape of the curve.
+        delta : parameter controlling the shape of the curve.
+        alpha : parameter controlling the shape of the curve. The default is 2.05
+        emax : parameter or function controlling the maximum search sensitivity
 
         Returns
         -------
@@ -877,7 +877,7 @@ class Found_injections:
         
         if self.emax_fun is not None:
             emax = self.emax(m1_det, m2_det, emax_params)
-               
+
         pdet = self.sigmoid(self.dL, dmid_values, emax, gamma, delta, alpha)
         
         def cdf(x):
@@ -1107,7 +1107,7 @@ class Found_injections:
         
         self.get_opt_params(run_fit, rescale_o3)
         
-        #we compute some values of dl for some z to make an interpolator
+        # We compute some values of dl for some z to make an interpolator
         if self.zinterp_VT is None:
             fun_A = lambda t : np.sqrt(self.cosmo.Om0 * (1 + t)**3 + 1 - self.cosmo.Om0)
             quad_fun_A = lambda t: 1/fun_A(t)
@@ -1117,7 +1117,9 @@ class Found_injections:
             dL = np.array([(const.c.value*1e-3 / self.cosmo.H0.value) * (1 + i) * integrate.quad(quad_fun_A, 0, i)[0] for i in z0])
             
             self.zinterp_VT = interpolate.interp1d(dL, z0)
-        
+        if self.dLmax is None:
+            self.dLmax = dL.max()
+
         m1_det = lambda dL_int : m1 * (1 + self.zinterp_VT(dL_int))
         m2_det = lambda dL_int : m2 * (1 + self.zinterp_VT(dL_int))
         
@@ -1130,11 +1132,11 @@ class Found_injections:
         
         if self.emax_fun is not None:
             emax = lambda dL_int : self.emax(m1_det(dL_int), m2_det(dL_int), emax_params)
-            quad_fun = lambda dL_int : self.sigmoid(dL_int, dmid(dL_int), m1_det(dL_int) + m2_det(dL_int), emax(dL_int), gamma, delta, alpha) \
+            quad_fun = lambda dL_int : self.sigmoid(dL_int, dmid(dL_int), emax(dL_int), gamma, delta, alpha) \
                        * self.interp_dL_pdf(dL_int)
         else:
             emax = np.copy(emax_params)
-            quad_fun = lambda dL_int : self.sigmoid(dL_int, dmid(dL_int), m1_det(dL_int) + m2_det(dL_int), emax, gamma, delta, alpha) \
+            quad_fun = lambda dL_int : self.sigmoid(dL_int, dmid(dL_int), emax, gamma, delta, alpha) \
                        * self.interp_dL_pdf(dL_int)
 
         pdet = integrate.quad(quad_fun, 0, self.dLmax)[0]
